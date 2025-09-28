@@ -41,3 +41,9 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/terraform-pool/providers/github-provider"
+          service_account: "terraform-deployer@photo-blog-466210.iam.gserviceaccount.com"
+
