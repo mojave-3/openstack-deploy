@@ -1,4 +1,4 @@
-name: Terraform Deploy
+name: Deploy OpenStack Infra with Terraform
 
 on:
   push:
@@ -14,28 +14,28 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          token_format: access_token
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/terraform-pool/providers/github-provider"
-          service_account: "terraform-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/terraform-pool/providers/github-provider
+          service_account: terraform-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.9.5
 
       - name: Terraform Init
         run: terraform init
         working-directory: ./openstack-deploy
 
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -out=tfplan
         working-directory: ./openstack-deploy
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve tfplan
         working-directory: ./openstack-deploy
-
