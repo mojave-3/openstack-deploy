@@ -1,51 +1,108 @@
 provider "google" {
   project = var.project_id
-  region  = var.region
-  zone    = var.zone
+  region  = "asia-southeast1"
+  zone    = "asia-southeast1-b"
 }
 
-# Lấy image Ubuntu 22.04 mới nhất
-data "google_compute_image" "ubuntu2204" {
-  family  = "ubuntu-2204-lts"
-  project = "ubuntu-os-cloud"
-}
-
-# VPC riêng
+# Network
 resource "google_compute_network" "openstack" {
-  name                    = var.network_name
+  name                    = "openstack-network"
   auto_create_subnetworks = false
 }
 
-# Subnet
 resource "google_compute_subnetwork" "openstack_subnet" {
-  name          = var.subnet_name
-  ip_cidr_range = var.subnet_cidr
-  region        = var.region
+  name          = "openstack-subnet"
+  ip_cidr_range = "10.0.0.0/24"
+  region        = "asia-southeast1"
   network       = google_compute_network.openstack.id
 }
 
-# Firewall cho SSH + HTTP/HTTPS
-resource "google_compute_firewall" "ssh_http" {
-  name    = "${var.network_name}-allow-ssh-http"
-  network = google_compute_network.openstack.id
+# Firewall: SSH + ICMP + HTTP + OpenStack API
+resource "google_compute_firewall" "openstack_fw" {
+  name    = "openstack-firewall"
+  network = google_compute_network.openstack.name
 
   allow {
     protocol = "tcp"
-    ports    = ["22", "80", "443"]
+    ports    = ["22", "80", "443", "5000", "8774", "9292", "9696"]
+  }
+
+  allow {
+    protocol = "icmp"
   }
 
   source_ranges = ["0.0.0.0/0"]
 }
 
-# Firewall cho nội bộ
-resource "google_compute_firewall" "internal" {
-  name    = "${var.network_name}-allow-internal"
-  network = google_compute_network.openstack.id
+# Controller Node
+resource "google_compute_instance" "controller" {
+  name         = "openstack-controller"
+  machine_type = "e2-medium"
+  zone         = "asia-southeast1-b"
 
-  allow {
-    protocol = "tcp"
-    ports    = ["22", "80", "443"]
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
   }
 
-  source_ranges = ["10.128.0.0/9"]
+  network_interface {
+    subnetwork   = google_compute_subnetwork.openstack_subnet.name
+    access_config {}
+  }
+
+  tags = ["openstack", "controller"]
+}
+
+# Compute Node
+resource "google_compute_instance" "compute1" {
+  name         = "openstack-compute-1"
+  machine_type = "e2-medium"
+  zone         = "asia-southeast1-b"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    subnetwork   = google_compute_subnetwork.openstack_subnet.name
+    access_config {}
+  }
+
+  tags = ["openstack", "compute"]
+}
+# Storage Node (Cinder)
+resource "google_compute_instance" "storage1" {
+  name         = "openstack-storage-1"
+  machine_type = "e2-medium"
+  zone         = "asia-southeast1-b"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  # Extra disk for Cinder
+  attached_disk {
+    source      = google_compute_disk.cinder_disk.id
+    device_name = "cinder-disk"
+  }
+
+  network_interface {
+    subnetwork   = google_compute_subnetwork.openstack_subnet.name
+    access_config {}
+  }
+
+  tags = ["openstack", "storage"]
+}
+
+# Extra persistent disk for Cinder
+resource "google_compute_disk" "cinder_disk" {
+  name  = "cinder-disk"
+  type  = "pd-standard"
+  zone  = "asia-southeast1-b"
+  size  = 50 # GB
 }
