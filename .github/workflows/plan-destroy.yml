@@ -3,6 +3,10 @@ name: Terraform Plan Destroy
 on:
   workflow_dispatch:
 
+permissions:   # 🔑 BẮT BUỘC để OIDC hoạt động
+  id-token: write   # Cho phép tạo ID token cho GCP auth
+  contents: read    # Để checkout repo
+
 jobs:
   terraform:
     runs-on: ubuntu-latest
@@ -18,15 +22,19 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5   # ghi rõ version cho ổn định
 
       - name: Terraform Init
         run: terraform init
+        working-directory: ./openstack-deploy   # nếu code Terraform nằm trong folder này
 
       - name: Terraform Plan Destroy
         run: terraform plan -destroy -out=tfplan
+        working-directory: ./openstack-deploy
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          path: tfplan
+          path: ./openstack-deploy/tfplan
