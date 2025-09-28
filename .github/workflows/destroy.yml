@@ -1,20 +1,23 @@
-name: Terraform Destroy Infra
+name: Terraform Destroy Apply
 
 on:
   workflow_dispatch:
 
-permissions:   # 🔑 BẮT BUỘC để OIDC hoạt động
-  id-token: write   # Cho phép tạo ID token cho GCP auth
-  contents: read    # Để checkout repo
-
 jobs:
-  terraform:
+  terraform-destroy-apply:
     runs-on: ubuntu-latest
+
     environment:
-      name: production   # yêu cầu approval trước khi chạy
+      name: production
+      # Bạn có thể bật "Required reviewers" trong GitHub để buộc phê duyệt trước khi chạy
+
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -24,15 +27,13 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
 
       - name: Terraform Init
         run: terraform init
+        working-directory: ./openstack-deploy
 
-      - name: Download plan artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: .
-
-      - name: Terraform Apply Destroy
-        run: terraform apply -auto-approve tfplan
+      - name: Terraform Destroy Apply
+        run: terraform apply -auto-approve -destroy
+        working-directory: ./openstack-deploy
