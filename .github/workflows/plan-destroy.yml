@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  terraform:
+  plan-destroy:
     runs-on: ubuntu-latest
 
     permissions:
@@ -22,6 +22,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
 
       - name: Terraform Init
         run: terraform init
@@ -37,19 +39,28 @@ jobs:
           name: tfplan
           path: ./openstack-deploy/tfplan
 
-  show-plan:
+  review-destroy:
+    needs: plan-destroy
     runs-on: ubuntu-latest
-    needs: terraform
 
     steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./openstack-deploy
+
       - name: Download plan artifact
         uses: actions/download-artifact@v4
         with:
           name: tfplan
-          path: .
+          path: ./openstack-deploy
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Show
-        run: terraform show tfplan
+      - name: Show Terraform Plan
+        run: terraform show -no-color tfplan
+        working-directory: ./openstack-deploy
