@@ -3,6 +3,10 @@ name: Terraform Destroy Infra
 on:
   workflow_dispatch:
 
+permissions:   # 🔑 BẮT BUỘC để OIDC hoạt động
+  id-token: write   # Cho phép tạo ID token cho GCP auth
+  contents: read    # Để checkout repo
+
 jobs:
   terraform:
     runs-on: ubuntu-latest
