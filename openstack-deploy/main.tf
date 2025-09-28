@@ -4,6 +4,13 @@ provider "google" {
   zone    = "asia-southeast1-b"
 }
 
+terraform {
+  backend "gcs" {
+    bucket = "photo-blog-466210-tfstate"
+    prefix = "openstack"
+  }
+}
+
 # Network
 resource "google_compute_network" "openstack" {
   name                    = "openstack-network"
