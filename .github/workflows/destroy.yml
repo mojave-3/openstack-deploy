@@ -6,10 +6,9 @@ on:
 jobs:
   terraform-destroy-apply:
     runs-on: ubuntu-latest
-
-    environment:
-      name: production
-      # Bạn có thể bật "Required reviewers" trong GitHub để buộc phê duyệt trước khi chạy
+    defaults:
+      run:
+        working-directory: ./openstack-deploy   # chỉnh đúng thư mục chứa main.tf
 
     permissions:
       contents: read
@@ -17,23 +16,34 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Auth to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.5
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 🔍 Debug bucket & state
+      - name: List state files in GCS
+        run: gsutil ls gs://photo-blog-466210-tfstate/openstack/ || echo "No state files found"
 
       - name: Terraform Init
-        run: terraform init
-        working-directory: ./openstack-deploy
+        run: terraform init -migrate-state -input=false
 
-      - name: Terraform Destroy Apply
-        run: terraform apply -auto-approve -destroy
-        working-directory: ./openstack-deploy
+      - name: Show Workspace
+        run: terraform workspace show
+
+      - name: Terraform State List
+        run: terraform state list || echo "No resources in state"
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
